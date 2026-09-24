@@ -40,18 +40,19 @@ struct ContentView: View {
     private var header: some View {
         HStack(spacing: 14) {
             RoundedRectangle(cornerRadius: 14)
-                .fill(
-                    LinearGradient(colors: [Color(red: 1.0, green: 0.83, blue: 0.55),
-                                            Color(red: 0.91, green: 0.64, blue: 0.24)],
-                                   startPoint: .topLeading, endPoint: .bottomTrailing)
+                .fill(Color(red: 0.98, green: 0.97, blue: 0.95))
+                .overlay(
+                    LinearGradient(colors: [Color(red: 0.99, green: 0.99, blue: 0.98),
+                                            Color(red: 0.93, green: 0.92, blue: 0.89)],
+                                   startPoint: .top, endPoint: .bottom)
                 )
                 .frame(width: 52, height: 52)
                 .overlay(
-                    Text("␣")
-                        .font(.system(size: 28, weight: .bold))
-                        .foregroundStyle(.white)
+                    Capsule()
+                        .fill(Color(red: 0.23, green: 0.21, blue: 0.19))
+                        .frame(width: 26, height: 3.5)
                 )
-                .shadow(color: .black.opacity(0.12), radius: 5, y: 2)
+                .shadow(color: .black.opacity(0.10), radius: 5, y: 2)
             VStack(alignment: .leading, spacing: 3) {
                 Text("秒览 Glance")
                     .font(.system(size: 20, weight: .bold))

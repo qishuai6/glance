@@ -1,0 +1,8 @@
+# 应用配置
+[database]
+server = "192.168.1.1"
+ports = [8001, 8001, 8002]
+enabled = true
+
+[servers.alpha]
+ip = "10.0.0.1"

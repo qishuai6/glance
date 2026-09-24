@@ -1,0 +1,15 @@
+{
+  "name": "秒览",
+  "version": 1.0,
+  "tags": ["markdown", "zip", "sql"],
+  "config": {
+    "debug": false,
+    "retries": 3,
+    "timeout": 30.5,
+    "parent": null
+  },
+  "items": [
+    {"id": 1, "title": "第一项"},
+    {"id": 2, "title": "第二项"}
+  ]
+}

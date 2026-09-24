@@ -30,6 +30,7 @@ final class SpaceTapController {
         "csv", "tsv", "json", "jsonl", "ndjson",
         "yaml", "yml", "toml", "ini", "conf", "cfg", "env", "properties",
         "log", "plist", "xml", "css",
+        "svg", "psd",
         "sql", "swift", "py", "js", "ts", "go", "rs", "kt", "java",
         "c", "h", "cpp", "cc", "cxx", "hpp", "m", "rb", "php", "pl",
         "lua", "sh", "bash", "zsh", "s", "make", "dockerfile", "makefile",

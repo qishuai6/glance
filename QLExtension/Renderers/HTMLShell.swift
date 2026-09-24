@@ -94,6 +94,12 @@ enum HTML {
         .dir{color:#b06a1f;font-weight:600}
         .unsupported{text-align:center;padding:46px 20px;color:#98928a}
         .unsupported .em{font-size:44px}
+        /* 图像（svg/psd）*/
+        .imgview{display:flex;align-items:center;justify-content:center;
+                 min-height:200px;border-radius:10px;
+                 background:repeating-conic-gradient(#f4f2ee 0% 25%,#ffffff 0% 50%) 0 0/24px 24px}
+        .imgview img{max-width:100%;max-height:560px;border-radius:6px}
+        .svgbox img{background:#fff;padding:12px;box-sizing:border-box}
         </style></head>
         <body>
         <div class="topbar"><span class="badge">\(escape(badge))</span>

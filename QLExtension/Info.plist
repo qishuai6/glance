@@ -173,6 +173,8 @@
 				<string>com.apple.property-list</string>
 				<string>public.make-source</string>
 				<string>org.iso.sql</string>
+				<string>com.adobe.photoshop-image</string>
+				<string>public.svg-image</string>
 				<string>public.toml</string>
 			<string>com.apple.log</string>
 			<string>public.yaml</string>

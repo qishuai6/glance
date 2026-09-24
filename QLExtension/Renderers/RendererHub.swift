@@ -79,6 +79,13 @@ enum RendererHub {
             }
             return textPage(url: url, name: name, badge: "PLIST", meta: meta, mode: .xml)
 
+        // ---- 图像 ----
+        case "svg":
+            return renderSVG(url: url, name: name, meta: meta)
+        case "psd":
+            return HTML.page(badge: "PSD", name: name, meta: meta,
+                             body: PSDRenderer.render(url: url, totalBytes: size))
+
         // ---- XML / CSS / 已知代码语言 ----
         case "xml":
             return textPage(url: url, name: name, badge: "XML", meta: meta, mode: .xml)
@@ -103,6 +110,48 @@ enum RendererHub {
         <p><b>\(HTML.escape(baseName))</b>（.\(HTML.escape(ext))）暂不支持富预览</p>
         </div>
         """)
+    }
+
+    // MARK: - SVG
+
+    /// SVG：data URI 内嵌渲染（等比缩放适配面板，白底衬透明图形）。
+    private static func renderSVG(url: URL, name: String, meta: String) -> String {
+        guard let data = try? Data(contentsOf: url) else {
+            return HTML.page(badge: "SVG", name: name, meta: meta,
+                             body: "<div class=\"unsupported\"><div class=\"em\">🖼️</div>无法读取文件</div>")
+        }
+        if data.count > 8_000_000 {
+            return HTML.page(badge: "SVG", name: name, meta: meta,
+                             body: "<div class=\"hint\">文件超过 8MB，过大不渲染。</div>")
+        }
+        var body = ""
+        if let (w, h) = svgSizeHint(data) {
+            body += """
+            <div class="stats">
+              <div class="stat"><b>\(HTML.escape(w))×\(HTML.escape(h))</b><span>画布</span></div>
+              <div class="stat"><b>\(HTML.fmtBytes(data.count))</b><span>文件大小</span></div>
+            </div>
+            """
+        }
+        let b64 = data.base64EncodedString()
+        body += "<div class=\"imgview svgbox\"><img src=\"data:image/svg+xml;base64,\(b64)\" alt=\"svg\"></div>"
+        return HTML.page(badge: "SVG", name: name, meta: meta, body: body)
+    }
+
+    /// 从 <svg> 标签粗取 width/height 显示用。
+    private static func svgSizeHint(_ data: Data) -> (String, String)? {
+        guard let head = String(data: data.prefix(2048), encoding: .utf8)
+                ?? String(data: data.prefix(2048), encoding: .isoLatin1),
+              let re = try? NSRegularExpression(pattern: "<svg[^>]*"),
+              let m = re.firstMatch(in: head, range: NSRange(head.startIndex..., in: head)),
+              let r = Range(m.range, in: head) else { return nil }
+        let tag = String(head[r])
+        func attr(_ key: String) -> String? {
+            guard let rr = tag.range(of: "\(key)=\"[^\"]*\"", options: .regularExpression) else { return nil }
+            return String(tag[rr]).dropFirst(key.count + 2).dropLast().description
+        }
+        guard let w = attr("width"), let h = attr("height") else { return nil }
+        return (w, h)
     }
 
     // MARK: - 文本页面通用流程

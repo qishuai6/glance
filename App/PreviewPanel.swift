@@ -28,6 +28,15 @@ final class PreviewPanel: NSPanel {
         backgroundColor = .clear
         contentView = webView
         center()
+
+        // 点面板外任意处关闭（贴近系统 Quick Look 的习惯，避免面板残留遮蔽后续操作）
+        NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown]) { [weak self] event in
+            guard let self, self.isVisible else { return }
+            let loc = NSEvent.mouseLocation
+            if !self.frame.contains(loc) {
+                self.orderOut(nil)
+            }
+        }
     }
 
     var currentIndex: Int { index }

@@ -98,6 +98,34 @@ struct Lang {
                 name: "Makefile",
                 keywords: Set("all clean install ifeq ifneq endif include export".split(separator: " ").map(String.init)),
                 lineComments: ["#"], blockComment: nil, types: Set()),
+            "r": Lang(
+                name: "R",
+                keywords: Set("function if else for while repeat library require data frame list c return TRUE FALSE NULL NA Inf next break source install.packages suppressMessages mutate filter select group_by summarise".split(separator: " ").map(String.init)),
+                lineComments: ["#"], blockComment: nil, types: Set()),
+            "scala": Lang(
+                name: "Scala",
+                keywords: Set("object class trait case def val var implicit lazy sealed abstract extends with override final private protected import package match yield for while if else try catch finally throw return type new this super null true false".split(separator: " ").map(String.init)),
+                lineComments: ["//"], blockComment: ("/*", "*/"), types: Set()),
+            "dart": Lang(
+                name: "Dart",
+                keywords: Set("void var final const late class abstract extends implements mixin with async await Future Stream List Map Set String int double bool num dynamic null true false if else for while switch case default return import library part new this super try catch finally throw enum factory static get set".split(separator: " ").map(String.init)),
+                lineComments: ["//"], blockComment: ("/*", "*/"), types: Set()),
+            "ex": Lang(
+                name: "Elixir",
+                keywords: Set("def defmodule defp defstruct defprotocol defimpl do end case cond with import require alias use receive send spawn link if unless for when and or not nil true false fn".split(separator: " ").map(String.init)),
+                lineComments: ["#"], blockComment: nil, types: Set()),
+            "ps1": Lang(
+                name: "PowerShell",
+                keywords: Set("function param begin process end filter if elseif else switch foreach for while do until break continue return try catch finally throw trap class enum interface using local global static param default valuefrompipeline".split(separator: " ").map(String.init)),
+                lineComments: ["#"], blockComment: ("<#", "#>"), types: Set()),
+            "bat": Lang(
+                name: "Batch",
+                keywords: Set("echo off set setlocal endlocal if exist goto call exit for do in rem pause cls del copy move md rd start title".split(separator: " ").map(String.init)),
+                lineComments: ["REM ", "::"], blockComment: nil, types: Set()),
+            "tex": Lang(
+                name: "LaTeX",
+                keywords: Set("documentclass usepackage begin end section subsection subsubsection title author date item ref cite label equation figure table tabular itemize enumerate align newcommand renewcommand frac sum int".split(separator: " ").map(String.init)),
+                lineComments: ["%"], blockComment: nil, types: Set()),
         ]
         // 别名（不能在字面量里引用 table 自身）
         t["h"] = t["c"]
@@ -106,6 +134,14 @@ struct Lang {
         t["hpp"] = t["cpp"]
         t["bash"] = t["sh"]
         t["zsh"] = t["sh"]
+        t["jsx"] = t["js"]
+        t["mjs"] = t["js"]
+        t["cjs"] = t["js"]
+        t["tsx"] = t["ts"]
+        t["exs"] = t["ex"]
+        t["cmd"] = t["bat"]
+        t["vue"] = Lang(name: "Vue", keywords: Set(), lineComments: [], blockComment: nil, types: Set())
+        t["svelte"] = t["vue"]
         return t
     }()
 

@@ -26,14 +26,19 @@ final class SpaceTapController {
 
     /// 秒览接管的扩展名（系统 Quick Look 有内容预览器的类型它不会让给第三方，这里全部由我们自己接管）
     static let takeoverExts: Set<String> = [
-        "md", "markdown", "zip", "tar", "tgz",
-        "csv", "tsv", "json", "jsonl", "ndjson",
+        "md", "markdown", "mdx", "mdown", "zip", "tar", "tgz", "gz",
+        "apk", "ipa", "jar", "war",
+        "csv", "tsv", "json", "jsonl", "ndjson", "ipynb",
         "yaml", "yml", "toml", "ini", "conf", "cfg", "env", "properties",
         "log", "plist", "xml", "css",
-        "svg", "psd",
+        "svg", "psd", "ai", "eps",
+        "ttf", "otf", "ttc", "woff", "woff2",
+        "vue", "svelte",
         "sql", "swift", "py", "js", "ts", "go", "rs", "kt", "java",
         "c", "h", "cpp", "cc", "cxx", "hpp", "m", "rb", "php", "pl",
         "lua", "sh", "bash", "zsh", "s", "make", "dockerfile", "makefile",
+        "jsx", "tsx", "mjs", "cjs", "r", "scala", "dart", "ex", "exs",
+        "bat", "cmd", "ps1", "tex",
     ]
 
     var isEnabled = true
@@ -239,14 +244,17 @@ final class SpaceTapController {
             item.types.compactMap { t in item.data(forType: t).map { (t, $0) } }
         }
 
+        guard let finderApp = NSWorkspace.shared.runningApplications
+            .first(where: { $0.bundleIdentifier == "com.apple.finder" }) else { return nil }
         guard let src = CGEventSource(stateID: .combinedSessionState) else { return nil }
         let cDown = CGEvent(keyboardEventSource: src, virtualKey: 8, keyDown: true)!
         cDown.flags = .maskCommand
         let cUp = CGEvent(keyboardEventSource: src, virtualKey: 8, keyDown: false)!
         cUp.flags = .maskCommand
-        cDown.post(tap: .cghidEventTap)
+        // 定向投递给访达进程：不受当前前台应用影响（投到 HID 会打到别的 App）
+        cDown.postToPid(finderApp.processIdentifier)
         Thread.sleep(forTimeInterval: 0.04)
-        cUp.post(tap: .cghidEventTap)
+        cUp.postToPid(finderApp.processIdentifier)
 
         var urls: [URL] = []
         let pollDeadline = Date().addingTimeInterval(1.5)

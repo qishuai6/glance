@@ -8,11 +8,12 @@ struct ContentView: View {
 
     private let formatGroups: [(name: String, items: [String])] = [
         ("文档", ["Markdown 渲染", "log 日志高亮", "txt 兜底纯文本"]),
-        ("压缩包", ["zip 清单（含中文名）", "tar / tar.gz / tgz", "大小与压缩比统计"]),
-        ("数据", ["json 格式化", "jsonl / ndjson", "csv / tsv 表格"]),
+        ("压缩包", ["zip/apk/ipa/jar 清单", "tar / tar.gz / 单文件 gz", "大小与压缩比统计"]),
+        ("数据", ["json 格式化", "jsonl / ipynb 笔记本", "csv / tsv 表格"]),
         ("配置", ["yaml / toml / ini", "conf / cfg / env", "plist（含二进制）"]),
-        ("图像", ["svg 矢量渲染", "psd 合成图（PS 文件）", "画布尺寸/通道信息"]),
-        ("代码", ["sql / swift / py / js", "ts / go / rust / java", "c / cpp / sh / rb 等 30+"]),
+        ("设计", ["psd 合成图", "ai 画板渲染", "svg / eps 预览"]),
+        ("字体", ["ttf / otf / ttc", "woff / woff2 字样页", "字母数字中文样张"]),
+        ("代码", ["sql / swift / py / js", "ts / go / rust / java / r", "scala / dart / ps1 / bat 等 40+"]),
     ]
 
     var body: some View {

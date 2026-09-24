@@ -1,4 +1,5 @@
 import Foundation
+import AppKit
 import UniformTypeIdentifiers
 
 /// 分发中枢：按扩展名路由到对应渲染器，统一产出完整 HTML 页面。
@@ -14,6 +15,11 @@ enum RendererHub {
 
         // Makefile / Dockerfile 等无扩展名特殊文件名
         let special = name.lowercased()
+        // 双扩展名：xxx.tar.gz 归 tgz
+        if ext == "gz", name.lowercased().hasSuffix(".tar.gz") {
+            return HTML.page(badge: "TGZ", name: name, meta: meta,
+                             body: ArchiveRenderer.renderTar(url: url, totalBytes: size, gz: true))
+        }
         switch ext.isEmpty ? special : ext {
         case "makefile":
             return textPage(url: url, name: name, badge: "MK", meta: meta, mode: .code(Lang.table["make"]!))
@@ -27,14 +33,14 @@ enum RendererHub {
 
         switch ext {
         // ---- 文档 ----
-        case "md", "markdown":
+        case "md", "markdown", "mdx", "mdown":
             let (text, trunc, _) = readText(url, maxBytes: 2_000_000)
             let body = MarkdownRenderer.render(text: text, baseURL: url.deletingLastPathComponent(), truncated: trunc)
             return HTML.page(badge: "MD", name: name, meta: meta, body: body)
 
-        // ---- 压缩包 ----
-        case "zip":
-            return HTML.page(badge: "ZIP", name: name, meta: meta,
+        // ---- 压缩包（zip 系：zip/apk/ipa/jar/war 都是 zip 容器）----
+        case "zip", "apk", "ipa", "jar", "war":
+            return HTML.page(badge: ext == "zip" ? "ZIP" : ext.uppercased(), name: name, meta: meta,
                              body: ArchiveRenderer.renderZip(url: url, totalBytes: size))
         case "tar":
             return HTML.page(badge: "TAR", name: name, meta: meta,
@@ -42,6 +48,13 @@ enum RendererHub {
         case "tgz":
             return HTML.page(badge: "TGZ", name: name, meta: meta,
                              body: ArchiveRenderer.renderTar(url: url, totalBytes: size, gz: true))
+        case "gz":
+            return renderGzInner(url: url, name: name, meta: meta)
+
+        // ---- 笔记本 ----
+        case "ipynb":
+            return HTML.page(badge: "PY", name: name, meta: meta,
+                             body: NotebookRenderer.render(url: url, totalBytes: size))
 
         // ---- 表格 ----
         case "csv":
@@ -85,6 +98,20 @@ enum RendererHub {
         case "psd":
             return HTML.page(badge: "PSD", name: name, meta: meta,
                              body: PSDRenderer.render(url: url, totalBytes: size))
+        case "ai":
+            return HTML.page(badge: "AI", name: name, meta: meta,
+                             body: AIRenderer.render(url: url, totalBytes: size))
+        case "eps":
+            return renderEPS(url: url, name: name, meta: meta, size: size)
+
+        // ---- 字体 ----
+        case "ttf", "otf", "ttc", "woff", "woff2":
+            return HTML.page(badge: ext.uppercased(), name: name, meta: meta,
+                             body: FontRenderer.render(url: url, totalBytes: size), card: false)
+
+        // ---- 单文件组件（模板高亮）----
+        case "vue", "svelte":
+            return textPage(url: url, name: name, badge: ext.uppercased(), meta: meta, mode: .xml)
 
         // ---- XML / CSS / 已知代码语言 ----
         case "xml":
@@ -110,6 +137,94 @@ enum RendererHub {
         <p><b>\(HTML.escape(baseName))</b>（.\(HTML.escape(ext))）暂不支持富预览</p>
         </div>
         """)
+    }
+
+    // MARK: - gz 单文件（解压后按内容路由）
+
+    private static func renderGzInner(url: URL, name: String, meta: String) -> String {
+        guard let fh = try? FileHandle(forReadingFrom: url) else {
+            return HTML.page(badge: "GZ", name: name, meta: meta,
+                             body: "<div class=\"unsupported\"><div class=\"em\">🗜️</div>无法读取</div>")
+        }
+        defer { try? fh.close() }
+        guard let gz = ArchiveRenderer.GzipDecoder() else {
+            return HTML.page(badge: "GZ", name: name, meta: meta,
+                             body: "<div class=\"unsupported\"><div class=\"em\">🗜️</div>初始化解压失败</div>")
+        }
+        var inner = Data()
+        while let chunk = try? fh.read(upToCount: 256 * 1024), !chunk.isEmpty {
+            guard let out = gz.push(chunk), !out.isEmpty else { break }
+            inner.append(out)
+            if inner.count > 8_000_000 {
+                return HTML.page(badge: "GZ", name: name, meta: meta,
+                                 body: "<div class=\"hint\">解压后超过 8MB，只显示压缩包信息。</div>")
+            }
+        }
+        guard !inner.isEmpty else {
+            return HTML.page(badge: "GZ", name: name, meta: meta,
+                             body: "<div class=\"hint\">解压失败或为空。</div>")
+        }
+        // 按去掉 .gz 的扩展名猜内层格式；猜不到按内容（文本/二进制）
+        let innerName = String(name.dropLast(3))
+        let innerExt = (innerName as NSString).pathExtension.lowercased()
+        let tmp = URL(fileURLWithPath: NSTemporaryDirectory())
+            .appendingPathComponent("glance_\(UInt32.random(in: 1_000_000...9_999_999)).\(innerExt.isEmpty ? "bin" : innerExt)")
+        do {
+            try inner.write(to: tmp)
+            let body = render(url: tmp)
+            try? FileManager.default.removeItem(at: tmp)
+            return body
+        } catch {
+            return HTML.page(badge: "GZ", name: name, meta: meta,
+                             body: "<div class=\"hint\">写入临时文件失败。</div>")
+        }
+    }
+
+    // MARK: - EPS（尝试提取内嵌 TIFF 预览）
+
+    private static func renderEPS(url: URL, name: String, meta: String, size: Int) -> String {
+        guard let data = try? Data(contentsOf: url), data.count > 8 else {
+            return HTML.page(badge: "EPS", name: name, meta: meta,
+                             body: "<div class=\"unsupported\"><div class=\"em\">✏️</div>无法读取</div>")
+        }
+        var stats = """
+        <div class="stats"><div class="stat"><b>\(HTML.fmtBytes(size))</b><span>文件大小</span></div></div>
+        """
+        // PostScript 头信息（%%Title / %%BoundingBox 等）
+        let head = String(data: data.prefix(4096), encoding: .isoLatin1) ?? ""
+        var lines: [String] = []
+        for line in head.split(separator: "\n") {
+            if line.hasPrefix("%%Title") || line.hasPrefix("%%BoundingBox") || line.hasPrefix("%%Creator") {
+                lines.append(HTML.escape(String(line).trimmingCharacters(in: .whitespaces)))
+            }
+        }
+        if !lines.isEmpty {
+            stats += "<pre style=\"font-size:12px;color:#6b665e\">\(lines.joined(separator: "\n"))</pre>"
+        }
+        // 找 TIFF 预览（II*\0 或 MM\0*），通常在文件尾部
+        let magicLE: [UInt8] = [0x49, 0x49, 0x2A, 0x00]
+        let magicBE: [UInt8] = [0x4D, 0x4D, 0x00, 0x2A]
+        var tiffOffset: Int? = nil
+        let scanStart = max(0, data.count - 4_000_000)
+        var i = data.count - 4
+        while i >= scanStart {
+            if data[i] == magicLE[0] || data[i] == magicBE[0] {
+                let m = data[i] == magicLE[0] ? magicLE : magicBE
+                if data[i + 1] == m[1], data[i + 2] == m[2], data[i + 3] == m[3] {
+                    tiffOffset = i
+                    break
+                }
+            }
+            i -= 1
+        }
+        if let off = tiffOffset, let img = NSImage(data: data.subdata(in: off..<data.count)),
+           let tiff = img.tiffRepresentation, let rep = NSBitmapImageRep(data: tiff),
+           let png = rep.representation(using: .png, properties: [:]) {
+            stats += "<div class=\"imgview\"><img src=\"data:image/png;base64,\(png.base64EncodedString())\" alt=\"eps\"></div>"
+        } else {
+            stats += "<div class=\"hint\">未找到内嵌 TIFF 预览（Mac 保存的 EPS 通常带），仅显示文件信息。</div>"
+        }
+        return HTML.page(badge: "EPS", name: name, meta: meta, body: stats)
     }
 
     // MARK: - SVG

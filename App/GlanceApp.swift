@@ -18,6 +18,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var permissionTimer: Timer?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        GlanceLog.log("App 启动（窗口枚举取选中项版 v5）")
         NSApp.setActivationPolicy(.regular)
         SpaceTapController.shared.start()
         if !SpaceTapController.shared.isRunning, !AXIsProcessTrusted() {

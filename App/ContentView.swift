@@ -69,6 +69,10 @@ struct ContentView: View {
                 row(no: "1", text: "把 秒览.app 放进「应用程序」文件夹")
                 row(no: "2", text: "授权辅助功能权限（接管空格键需要，仅用于读取 Finder 选中项）")
                 row(no: "3", text: "在 Finder 选中 md、zip、sql 等文件，按空格键 ✓（←→ 可切换文件）")
+                Divider().padding(.vertical, 2)
+                Text("秒览只在按空格时弹出预览，不改变任何文件的默认打开方式。")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
             }
         }
     }

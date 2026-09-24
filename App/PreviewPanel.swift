@@ -59,7 +59,10 @@ final class PreviewPanel: NSPanel {
 
     func step(_ delta: Int) {
         guard !files.isEmpty else { return }
-        index = (index + delta + files.count) % files.count
+        // 到头尾就停住（对齐系统 Quick Look，不循环）
+        let next = index + delta
+        guard next >= 0, next < files.count else { return }
+        index = next
         renderCurrent()
         // Finder 选中项跟随预览的文件（对齐系统 Quick Look 行为）
         let url = files[index]

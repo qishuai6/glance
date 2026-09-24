@@ -144,34 +144,45 @@ final class SpaceTapController {
         guard NSWorkspace.shared.frontmostApplication?.bundleIdentifier == "com.apple.finder",
               !takeoverBusy else { return event }
         takeoverBusy = true
-        // 异步取选中项（剪贴板兜底可能要等 1 秒+，不能阻塞监听回调）
-        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            let urls = self?.finderSelection() ?? []
-            DispatchQueue.main.async {
-                guard let self else { return }
-                self.takeoverBusy = false
-                guard !urls.isEmpty else {
-                    GlanceLog.log("Finder 选中项为空，补发空格走系统 QL")
-                    self.repostSpace()
-                    return
-                }
-                GlanceLog.log("Finder 选中 \(urls.count) 项：\(urls.map(\.lastPathComponent).joined(separator: ", "))")
-                let supported = urls.enumerated().filter { self.isTakeover($0.element) }
-                guard let first = supported.first else {
-                    GlanceLog.log("选中项均不支持，补发空格走系统 QL")
-                    self.repostSpace()
-                    return
-                }
-                GlanceLog.log("接管空格，预览 \(first.element.lastPathComponent)")
-                // 方向键可浏览整个文件夹的文件（对齐系统 QL 体验）
-                let (files, index) = Self.folderListing(around: first.element, fallback: urls, fallbackIndex: first.offset)
-                PreviewPanel.shared.show(files: files, index: index)
+        // AX 查询必须跑主线程（后台线程会静默失败）；剪贴板兜底有等待才放后台
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            let fastUrls = self.finderSelectionAXOnly()
+            if !fastUrls.isEmpty {
+                self.finishTakeover(urls: fastUrls)
+                return
+            }
+            DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+                let urls = self?.finderSelectionSlow() ?? []
+                DispatchQueue.main.async { self?.finishTakeover(urls: urls) }
             }
         }
         return nil // 吞掉本次空格，结果出来前不打扰系统
     }
 
-    /// 同目录文件清单（Finder 自然排序，跳过隐藏文件与子文件夹），返回（清单、当前文件下标）。
+    /// 接管收尾（主线程）：判支持 → 组文件夹清单（AX 显示顺序）→ 弹面板或补发。
+    private func finishTakeover(urls: [URL]) {
+        takeoverBusy = false
+        guard !urls.isEmpty else {
+            GlanceLog.log("Finder 选中项为空，补发空格走系统 QL")
+            repostSpace()
+            return
+        }
+        GlanceLog.log("Finder 选中 \(urls.count) 项：\(urls.map(\.lastPathComponent).joined(separator: ", "))")
+        let supported = urls.enumerated().filter { isTakeover($0.element) }
+        guard let first = supported.first else {
+            GlanceLog.log("选中项均不支持，补发空格走系统 QL")
+            repostSpace()
+            return
+        }
+        GlanceLog.log("接管空格，预览 \(first.element.lastPathComponent)")
+        // 方向键可浏览整个文件夹的文件（对齐系统 QL 体验）
+        let (files, index) = Self.folderListing(around: first.element, fallback: urls, fallbackIndex: first.offset)
+        PreviewPanel.shared.show(files: files, index: index)
+    }
+
+    /// 同目录文件清单：顺序优先取 Finder 窗口的显示行序（对齐当前排序设置），读不到再按名称自然排序。
+    /// 返回（清单、当前文件下标）。
     static func folderListing(around url: URL, fallback: [URL], fallbackIndex: Int) -> ([URL], Int) {
         let dir = url.deletingLastPathComponent()
         guard let items = try? FileManager.default.contentsOfDirectory(
@@ -179,17 +190,111 @@ final class SpaceTapController {
             return (fallback, fallbackIndex)
         }
         var files: [URL] = []
+        var byName: [String: URL] = [:]
         for item in items {
             var isDir: ObjCBool = false
             if FileManager.default.fileExists(atPath: item.path, isDirectory: &isDir), !isDir.boolValue {
                 files.append(item)
+                byName[item.lastPathComponent] = item
             }
         }
-        guard !files.isEmpty else { return (fallback, fallbackIndex) }
-        files.sort { $0.lastPathComponent.localizedStandardCompare($1.lastPathComponent) == .orderedAscending }
-        guard files.count <= 2000 else { return (fallback, fallbackIndex) }
-        let idx = files.firstIndex { $0.path == url.path } ?? 0
-        return (files, idx)
+        guard !files.isEmpty, files.count <= 2000 else { return (fallback, fallbackIndex) }
+
+        // 从 Finder 主窗口按显示顺序取行名（就是用户当前排序的顺序）
+        var ordered: [URL] = []
+        if let finder = NSWorkspace.shared.runningApplications.first(where: { $0.bundleIdentifier == "com.apple.finder" }),
+           let rowNames = axDisplayOrder(finder, byName: byName) {
+            var seen = Set<String>()
+            for name in rowNames {
+                if let u = byName[name], seen.insert(name).inserted {
+                    ordered.append(u)
+                }
+            }
+            GlanceLog.log("Finder 显示顺序：取到 \(ordered.count)/\(files.count) 项")
+        }
+
+        let listing: [URL]
+        if ordered.count >= max(1, files.count / 2) {
+            // AX 覆盖大部分：按显示顺序，缺的（虚拟化未加载的行）按名称序补到尾部
+            let missing = files.filter { !ordered.contains($0) }
+                .sorted { $0.lastPathComponent.localizedStandardCompare($1.lastPathComponent) == .orderedAscending }
+            listing = ordered + missing
+        } else {
+            listing = files.sorted { $0.lastPathComponent.localizedStandardCompare($1.lastPathComponent) == .orderedAscending }
+        }
+        let idx = listing.firstIndex { $0.path == url.path } ?? 0
+        return (listing, idx)
+    }
+
+    /// 读 Finder 主窗口的行显示顺序：收集窗口里所有行组（侧边栏/文件区各有 outline），
+    /// 取「与目录文件名匹配最多」的那组，即文件区当前排序的显示顺序。
+    private static func axDisplayOrder(_ finder: NSRunningApplication, byName: [String: URL]) -> [String]? {
+        let appEl = AXUIElementCreateApplication(finder.processIdentifier)
+        var wv: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(appEl, "AXWindows" as CFString, &wv) == .success,
+              let windows = wv as? [AXUIElement] else { return nil }
+        for w in windows {
+            if Self.subrole(of: w) == "Quick Look" { continue }
+            var groups: [[AXUIElement]] = []
+            collectRowGroups(el: w, into: &groups, depth: 0)
+            var bestNames: [String]? = nil
+            var bestMatches = 0
+            for rows in groups.prefix(8) {
+                let names = rows.compactMap { firstName(in: $0) }
+                let matches = names.filter { byName[$0] != nil }.count
+                if matches > bestMatches {
+                    bestMatches = matches
+                    bestNames = names
+                }
+            }
+            if bestMatches > 0 { return bestNames }
+        }
+        return nil
+    }
+
+    /// 递归收集窗口子树里的全部行组：表格取 AXRows；图标/列表视图的文件区是 AXList，取其 AXChildren。
+    private static func collectRowGroups(el: AXUIElement, into groups: inout [[AXUIElement]], depth: Int) {
+        guard depth < 10, groups.count < 8 else { return }
+        var v: CFTypeRef?
+        if AXUIElementCopyAttributeValue(el, "AXRows" as CFString, &v) == .success,
+           let rows = v as? [AXUIElement], !rows.isEmpty {
+            groups.append(rows)
+        }
+        var rv: CFTypeRef?
+        if AXUIElementCopyAttributeValue(el, "AXRole" as CFString, &rv) == .success,
+           let role = rv as? String, role == "AXList" {
+            var cv: CFTypeRef?
+            if AXUIElementCopyAttributeValue(el, "AXChildren" as CFString, &cv) == .success,
+               let items = cv as? [AXUIElement], !items.isEmpty {
+                groups.append(items)
+            }
+        }
+        var kids: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(el, "AXChildren" as CFString, &kids) == .success,
+              let children = kids as? [AXUIElement] else { return }
+        for c in children { collectRowGroups(el: c, into: &groups, depth: depth + 1) }
+    }
+
+    /// 行/项子树里的第一个文本（列表视图首列即文件名；图标视图的文本标签即文件名）。
+    private static func firstName(in el: AXUIElement, depth: Int = 0) -> String? {
+        guard depth < 4 else { return nil }
+        var rv: CFTypeRef?
+        if AXUIElementCopyAttributeValue(el, "AXRole" as CFString, &rv) == .success,
+           let role = rv as? String, role.contains("Text") {
+            var vv: CFTypeRef?
+            if AXUIElementCopyAttributeValue(el, "AXValue" as CFString, &vv) == .success,
+               let s = vv as? String, !s.isEmpty, s != "\t" {
+                return s
+            }
+        }
+        var kids: CFTypeRef?
+        if AXUIElementCopyAttributeValue(el, "AXChildren" as CFString, &kids) == .success,
+           let children = kids as? [AXUIElement] {
+            for c in children {
+                if let n = firstName(in: c, depth: depth + 1) { return n }
+            }
+        }
+        return nil
     }
 
     /// 接管失败时把空格还给系统（带标记避免自己再拦截；前台已不是访达时放弃）。
@@ -213,7 +318,7 @@ final class SpaceTapController {
         var wv: CFTypeRef?
         guard AXUIElementCopyAttributeValue(appEl, "AXWindows" as CFString, &wv) == .success,
               let windows = wv as? [AXUIElement] else { return false }
-        return windows.contains { subrole(of: $0) == "Quick Look" }
+        return windows.contains { Self.subrole(of: $0) == "Quick Look" }
     }
 
     private func isTakeover(_ url: URL) -> Bool {
@@ -224,18 +329,18 @@ final class SpaceTapController {
 
     // MARK: - 取 Finder 选中项（AX）
 
-    private func finderSelection() -> [URL] {
+    /// 快路径（必须主线程调用）：AX 取选中行上的 AXURL。
+    private func finderSelectionAXOnly() -> [URL] {
         guard let finder = NSWorkspace.shared.frontmostApplication,
               finder.bundleIdentifier == "com.apple.finder" else { return [] }
-        // ① AX：行/子树上的 AXURL（桌面与部分窗口有效，无副作用）
-        if let urls = selectionViaAX(finder: finder), !urls.isEmpty {
-            return urls
-        }
-        // ② AppleScript（若用户授过「控制访达」即刻生效；被拒时快速失败）
+        return selectionViaAX(finder: finder) ?? []
+    }
+
+    /// 慢路径（后台线程）：AppleScript → 剪贴板兜底（带等待）。
+    private func finderSelectionSlow() -> [URL] {
         if let urls = selectionViaAppleEvents(), !urls.isEmpty {
             return urls
         }
-        // ③ 剪贴板：模拟 ⌘C 复制读文件 URL 后还原剪贴板（文件夹窗口的行不带 AXURL 的兜底）
         if let urls = selectionViaClipboard(), !urls.isEmpty {
             return urls
         }
@@ -250,8 +355,8 @@ final class SpaceTapController {
         guard AXUIElementCopyAttributeValue(appEl, "AXWindows" as CFString, &wv) == .success,
               let windows = wv as? [AXUIElement] else { return nil }
         for w in windows {
-            if subrole(of: w) == "Quick Look" { continue }
-            if isMain(w), let urls = findSelection(in: w, depth: 0), !urls.isEmpty {
+            if Self.subrole(of: w) == "Quick Look" { continue }
+            if Self.isMain(w), let urls = findSelection(in: w, depth: 0), !urls.isEmpty {
                 return urls
             }
         }
@@ -349,7 +454,7 @@ final class SpaceTapController {
         return urls
     }
 
-    private func subrole(of el: AXUIElement) -> String {
+    private static func subrole(of el: AXUIElement) -> String {
         var v: CFTypeRef?
         guard AXUIElementCopyAttributeValue(el, "AXSubrole" as CFString, &v) == .success, let val = v else { return "" }
         if let s = val as? String { return s }
@@ -357,7 +462,7 @@ final class SpaceTapController {
         return ""
     }
 
-    private func isMain(_ el: AXUIElement) -> Bool {
+    private static func isMain(_ el: AXUIElement) -> Bool {
         var v: CFTypeRef?
         guard AXUIElementCopyAttributeValue(el, "AXMain" as CFString, &v) == .success else { return false }
         return (v as? Bool) ?? false

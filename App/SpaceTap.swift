@@ -53,6 +53,7 @@ final class SpaceTapController {
         CFRunLoopAddSource(CFRunLoopGetMain(), source, .commonModes)
         CGEvent.tapEnable(tap: port, enable: true)
         runLoopSource = source
+        NSLog("[Glance] 事件监听已启动")
     }
 
     func stop() {
@@ -103,11 +104,13 @@ final class SpaceTapController {
         guard code == 49 else { return event } // 仅接管空格
 
         let urls = finderSelection()
+        NSLog("[Glance] 空格按下，Finder 选中 \(urls.count) 项：\(urls.map(\.lastPathComponent))")
         guard !urls.isEmpty else { return event }
         // 找到第一个秒览支持的文件；支持则整体接管（←→ 可在选中项间切换，跳过不支持的）
         let supported = urls.enumerated().filter { isTakeover($0.element) }
         guard let first = supported.first else { return event }
 
+        NSLog("[Glance] 接管空格，预览 \(first.element.lastPathComponent)")
         panel.show(files: urls, index: first.offset)
         return nil
     }
@@ -122,17 +125,24 @@ final class SpaceTapController {
 
     private func finderSelection() -> [URL] {
         guard let finder = NSWorkspace.shared.frontmostApplication,
-              finder.bundleIdentifier == "com.apple.finder" else { return [] }
+              finder.bundleIdentifier == "com.apple.finder" else {
+            NSLog("[Glance] 前台不是 Finder，放行")
+            return []
+        }
         let appEl = AXUIElementCreateApplication(finder.processIdentifier)
         var value: CFTypeRef?
-        guard AXUIElementCopyAttributeValue(appEl, AXSelectedObjects, &value) == .success,
-              let elements = value as? [AXUIElement] else { return [] }
-        return elements.compactMap { el -> URL? in
+        let status = AXUIElementCopyAttributeValue(appEl, AXSelectedObjects, &value)
+        guard status == .success, let elements = value as? [AXUIElement] else {
+            NSLog("[Glance] AX 取选中项失败 status=\(status.rawValue)")
+            return []
+        }
+        let urls = elements.compactMap { el -> URL? in
             var v: CFTypeRef?
             guard AXUIElementCopyAttributeValue(el, AXURL, &v) == .success else { return nil }
             if let url = v as? URL { return url }
             if let ns = v as? NSURL { return ns as URL }
             return nil
         }
+        return urls
     }
 }

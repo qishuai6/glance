@@ -68,9 +68,12 @@ final class PreviewPanel: NSPanel {
         title = url.lastPathComponent
         let html = RendererHub.render(url: url)
         webView.loadHTMLString(html, baseURL: url.deletingLastPathComponent())
-        // 切换文件后回到页面顶部
+        // 切换文件后回到页面顶部，并在顶栏标注「第几个/共几个」
+        let pos = "\(index + 1)/\(files.count)"
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { [weak self] in
-            self?.webView.evaluateJavaScript("window.scrollTo(0,0)", completionHandler: nil)
+            self?.webView.evaluateJavaScript(
+                "window.scrollTo(0,0); var m=document.querySelector('.meta'); if(m&&!m.dataset.p){m.dataset.p=1;m.textContent+=' · \(pos)'}",
+                completionHandler: nil)
         }
     }
 }

@@ -121,10 +121,10 @@ final class SpaceTapController {
                 GlanceLog.log("面板可见，空格/Esc 关闭面板")
                 panel.orderOut(nil)
                 return nil
-            case 123: // ←
+            case 123, 126: // ← ↑
                 panel.step(-1)
                 return nil
-            case 124: // →
+            case 124, 125: // → ↓
                 panel.step(1)
                 return nil
             default:
@@ -163,10 +163,33 @@ final class SpaceTapController {
                     return
                 }
                 GlanceLog.log("接管空格，预览 \(first.element.lastPathComponent)")
-                PreviewPanel.shared.show(files: urls, index: first.offset)
+                // 方向键可浏览整个文件夹的文件（对齐系统 QL 体验）
+                let (files, index) = Self.folderListing(around: first.element, fallback: urls, fallbackIndex: first.offset)
+                PreviewPanel.shared.show(files: files, index: index)
             }
         }
         return nil // 吞掉本次空格，结果出来前不打扰系统
+    }
+
+    /// 同目录文件清单（Finder 自然排序，跳过隐藏文件与子文件夹），返回（清单、当前文件下标）。
+    static func folderListing(around url: URL, fallback: [URL], fallbackIndex: Int) -> ([URL], Int) {
+        let dir = url.deletingLastPathComponent()
+        guard let items = try? FileManager.default.contentsOfDirectory(
+            at: dir, includingPropertiesForKeys: [.isDirectoryKey], options: [.skipsHiddenFiles]) else {
+            return (fallback, fallbackIndex)
+        }
+        var files: [URL] = []
+        for item in items {
+            var isDir: ObjCBool = false
+            if FileManager.default.fileExists(atPath: item.path, isDirectory: &isDir), !isDir.boolValue {
+                files.append(item)
+            }
+        }
+        guard !files.isEmpty else { return (fallback, fallbackIndex) }
+        files.sort { $0.lastPathComponent.localizedStandardCompare($1.lastPathComponent) == .orderedAscending }
+        guard files.count <= 2000 else { return (fallback, fallbackIndex) }
+        let idx = files.firstIndex { $0.path == url.path } ?? 0
+        return (files, idx)
     }
 
     /// 接管失败时把空格还给系统（带标记避免自己再拦截；前台已不是访达时放弃）。

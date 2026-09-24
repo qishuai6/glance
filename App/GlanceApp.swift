@@ -19,6 +19,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.regular)
         SpaceTapController.shared.start()
+        if !SpaceTapController.shared.isRunning, !AXIsProcessTrusted() {
+            // 首次启动引导授权（空格键接管必需）
+            SpaceTapController.shared.requestPermission()
+        }
         setupStatusItem()
         if CommandLine.arguments.contains("--demo") {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in

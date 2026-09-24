@@ -101,15 +101,19 @@ struct ContentView: View {
                 )
 
                 HStack {
-                    Button("授权辅助功能") { SpaceTapController.shared.requestPermission() }
-                        .controlSize(.small)
+                    Button("打开辅助功能设置") {
+                        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
+                            NSWorkspace.shared.open(url)
+                        }
+                    }
+                    .controlSize(.small)
                     Button("重新检查") { refresh() }
                         .controlSize(.small)
                     Button("打开测试文件夹") { openFixtures() }
                         .controlSize(.small)
                     Spacer()
                     if !tapRunning {
-                        Text("授权后点「重新检查」")
+                        Text("勾选 Glance 后回来点「重新检查」")
                             .font(.system(size: 10.5))
                             .foregroundStyle(.secondary)
                     }

@@ -15,6 +15,7 @@ struct GlanceApp: App {
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: NSStatusItem?
     private var toggleMenuItem: NSMenuItem?
+    private var permissionTimer: Timer?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.regular)
@@ -24,11 +25,32 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             SpaceTapController.shared.requestPermission()
         }
         setupStatusItem()
+        watchPermission()
+
         if CommandLine.arguments.contains("--demo") {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
                 self?.showDemoPreview()
             }
         }
+    }
+
+    /// 授权往往是滞后的：轮询权限状态，一旦用户在系统设置里勾选，立即启动接管。
+    private func watchPermission() {
+        permissionTimer?.invalidate()
+        let timer = Timer(timeInterval: 2, repeats: true) { [weak self] _ in
+            let c = SpaceTapController.shared
+            if !c.isRunning, AXIsProcessTrusted() {
+                c.start()
+                self?.toggleMenuItem?.state = c.isRunning ? .on : .off
+                NotificationCenter.default.post(name: .init("GlanceStatusChanged"), object: nil)
+            }
+            if c.isRunning, self?.permissionTimer != nil {
+                self?.permissionTimer?.invalidate()
+                self?.permissionTimer = nil
+            }
+        }
+        RunLoop.main.add(timer, forMode: .common)
+        permissionTimer = timer
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }

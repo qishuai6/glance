@@ -61,6 +61,9 @@ final class PreviewPanel: NSPanel {
         guard !files.isEmpty else { return }
         index = (index + delta + files.count) % files.count
         renderCurrent()
+        // Finder 选中项跟随预览的文件（对齐系统 Quick Look 行为）
+        let url = files[index]
+        NSWorkspace.shared.selectFile(url.path, inFileViewerRootedAtPath: url.deletingLastPathComponent().path)
     }
 
     private func renderCurrent() {

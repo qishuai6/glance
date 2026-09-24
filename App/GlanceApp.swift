@@ -25,6 +25,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             // 首次启动引导授权（空格键接管必需）
             SpaceTapController.shared.requestPermission()
         }
+        // App 处于激活状态时触发「控制访达」授权弹窗（后台触发会被 TCC 静默拒绝）
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
+            var err: NSDictionary?
+            _ = NSAppleScript(source: "tell application \"Finder\" to count every window")?
+                .executeAndReturnError(&err)
+            if let e = err {
+                GlanceLog.log("访达控制授权状态: \(e["NSAppleScriptErrorNumber"] ?? "?")")
+            } else {
+                GlanceLog.log("访达控制授权：已就绪")
+            }
+        }
         setupStatusItem()
         watchPermission()
 

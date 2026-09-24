@@ -101,27 +101,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         statusItem = item
     }
 
-    /// 状态栏键帽小图标：暖白底、杏黄边、白色键帽（与 App 图标同款语言）。
+    /// 状态栏图标：一根短横线（空格键的极简符号，template 模式自适应深浅菜单栏）。
     static func keycapIcon() -> NSImage {
         let size = NSSize(width: 18, height: 18)
         let img = NSImage(size: size)
         img.lockFocus()
-        let full = NSRect(origin: .zero, size: size).insetBy(dx: 1.5, dy: 3.5)
-        // 键帽阴影
-        NSColor.black.withAlphaComponent(0.18).setFill()
-        NSBezierPath(roundedRect: full.offsetBy(dx: 0, dy: -0.6), xRadius: 3.5, yRadius: 3.5).fill()
-        // 杏黄侧边
-        NSColor(red: 0.91, green: 0.64, blue: 0.24, alpha: 1).setFill()
-        NSBezierPath(roundedRect: full.offsetBy(dx: 0, dy: -0.8), xRadius: 3.5, yRadius: 3.5).fill()
-        // 白色帽面
-        NSColor.white.setFill()
-        NSBezierPath(roundedRect: full.offsetBy(dx: 0, dy: 0.6), xRadius: 3.2, yRadius: 3.2).fill()
-        // 帽面上的空格横条
-        NSColor(red: 0.55, green: 0.5, blue: 0.42, alpha: 1).setFill()
-        let bar = NSRect(x: full.midX - 2.6, y: full.midY - 1.2, width: 5.2, height: 1.6)
-        NSBezierPath(roundedRect: bar, xRadius: 0.8, yRadius: 0.8).fill()
+        NSColor.black.setFill()
+        let bar = NSRect(x: (size.width - 9) / 2, y: size.height / 2 - 1, width: 9, height: 2)
+        NSBezierPath(roundedRect: bar, xRadius: 1, yRadius: 1).fill()
         img.unlockFocus()
-        img.isTemplate = false
+        img.isTemplate = true
         return img
     }
 

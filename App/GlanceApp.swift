@@ -101,16 +101,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         statusItem = item
     }
 
-    /// 状态栏图标：一根短横线（空格键的极简符号，template 模式自适应深浅菜单栏）。
+    /// 状态栏图标：品牌键帽图（蓝底白色空格键，与 App 图标同源；非 template 保留品牌色）
     static func keycapIcon() -> NSImage {
         let size = NSSize(width: 18, height: 18)
         let img = NSImage(size: size)
         img.lockFocus()
-        NSColor.black.setFill()
-        let bar = NSRect(x: (size.width - 9) / 2, y: size.height / 2 - 1, width: 9, height: 2)
-        NSBezierPath(roundedRect: bar, xRadius: 1, yRadius: 1).fill()
+        if let logo = NSImage(named: "Logo") {
+            // 菜单栏里留一点呼吸边，圆角比例与 App 图标一致
+            let inset: CGFloat = 0.75
+            let frame = NSRect(x: inset, y: inset,
+                               width: size.width - inset * 2, height: size.height - inset * 2)
+            NSGraphicsContext.current?.saveGraphicsState()
+            NSBezierPath(roundedRect: frame, xRadius: 3.6, yRadius: 3.6).addClip()
+            logo.draw(in: frame)
+            NSGraphicsContext.current?.restoreGraphicsState()
+        } else {
+            NSColor.black.setFill()
+            let bar = NSRect(x: (size.width - 9) / 2, y: size.height / 2 - 1, width: 9, height: 2)
+            NSBezierPath(roundedRect: bar, xRadius: 1, yRadius: 1).fill()
+        }
         img.unlockFocus()
-        img.isTemplate = true
         return img
     }
 

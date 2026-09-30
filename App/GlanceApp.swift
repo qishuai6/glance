@@ -101,26 +101,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         statusItem = item
     }
 
-    /// 状态栏图标：品牌键帽图（蓝底白色空格键，与 App 图标同源；非 template 保留品牌色）
+    /// 状态栏图标：键帽剪影（圆角键框 + 空格横条，template 单色自动适配菜单栏深浅）
     static func keycapIcon() -> NSImage {
         let size = NSSize(width: 18, height: 18)
         let img = NSImage(size: size)
         img.lockFocus()
-        if let logo = NSImage(named: "Logo") {
-            // 菜单栏里留一点呼吸边，圆角比例与 App 图标一致
-            let inset: CGFloat = 0.75
-            let frame = NSRect(x: inset, y: inset,
-                               width: size.width - inset * 2, height: size.height - inset * 2)
-            NSGraphicsContext.current?.saveGraphicsState()
-            NSBezierPath(roundedRect: frame, xRadius: 3.6, yRadius: 3.6).addClip()
-            logo.draw(in: frame)
-            NSGraphicsContext.current?.restoreGraphicsState()
-        } else {
-            NSColor.black.setFill()
-            let bar = NSRect(x: (size.width - 9) / 2, y: size.height / 2 - 1, width: 9, height: 2)
-            NSBezierPath(roundedRect: bar, xRadius: 1, yRadius: 1).fill()
-        }
+        NSColor.black.setFill()
+        NSColor.black.setStroke()
+        let frame = NSRect(x: 2.5, y: 4, width: 13, height: 10)
+        let framePath = NSBezierPath(roundedRect: frame, xRadius: 2, yRadius: 2)
+        framePath.lineWidth = 1.3
+        framePath.stroke()
+        let bar = NSRect(x: 6, y: 8.2, width: 6, height: 1.6)
+        NSBezierPath(roundedRect: bar, xRadius: 0.8, yRadius: 0.8).fill()
         img.unlockFocus()
+        img.isTemplate = true
         return img
     }
 

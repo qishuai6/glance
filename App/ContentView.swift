@@ -39,20 +39,16 @@ struct ContentView: View {
 
     private var header: some View {
         HStack(spacing: 14) {
-            RoundedRectangle(cornerRadius: 14)
-                .fill(Color(red: 0.98, green: 0.97, blue: 0.95))
-                .overlay(
-                    LinearGradient(colors: [Color(red: 0.99, green: 0.99, blue: 0.98),
-                                            Color(red: 0.93, green: 0.92, blue: 0.89)],
-                                   startPoint: .top, endPoint: .bottom)
-                )
-                .frame(width: 52, height: 52)
-                .overlay(
-                    Capsule()
-                        .fill(Color(red: 0.23, green: 0.21, blue: 0.19))
-                        .frame(width: 26, height: 3.5)
-                )
-                .shadow(color: .black.opacity(0.10), radius: 5, y: 2)
+            Group {
+                if let logo = NSImage(named: "Logo") {
+                    Image(nsImage: logo).resizable()
+                } else {
+                    RoundedRectangle(cornerRadius: 12).fill(Color.blue)
+                }
+            }
+            .frame(width: 52, height: 52)
+            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .shadow(color: .black.opacity(0.10), radius: 5, y: 2)
             VStack(alignment: .leading, spacing: 3) {
                 Text("秒览 Glance")
                     .font(.system(size: 20, weight: .bold))

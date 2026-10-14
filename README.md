@@ -73,6 +73,12 @@ swiftc -O QLExtension/Renderers/*.swift tools/main.swift -o tools/render_cli
 ./tools/render_cli fixtures/demo.sql /tmp/out.html && open /tmp/out.html
 ```
 
+## 更新日志
+
+- **2026-09-30** 品牌视觉定型：App 图标与设置窗口 logo 换空格键键帽图，状态栏图标改单色键帽剪影（模板自适配菜单栏深浅色）。
+- **2026-09-24** 格式大扩容：新增 svg / psd 空格预览（PSD 合成图解析）、ai / eps / 字体 / ipynb / gz / apk-ipa-jar 与 40+ 编程语言；方向键导航浏览整个文件夹 + Finder 选中项同步跟随；空格接管遍历访达全部窗口取选中项的稳定性修复、辅助功能授权自动引导。
+- **2026-09-24** v1.0 发布：Quick Look 扩展 + 空格键接管双引擎，14+ 格式富预览（Markdown 渲染 / 压缩包目录树 / 数据表格化 / 配置高亮 / 30+ 代码语言 / 日志分级着色）。
+
 ---
 
 © 2026 [qishuai.vip](https://qishuai.vip) · Design: 暖白拟物 × 杏黄点缀

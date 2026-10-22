@@ -204,8 +204,8 @@ struct ContentView: View {
 enum ProjectPath {
     /// 开发环境测试样例目录（装进 /Applications 后回退到常见位置）
     static let fixtures: String = {
-        let dev = "/Users/qishuai/ZCodeProject/Glance/fixtures"
+        let dev = NSString(string: "~/ZCodeProject/Glance/fixtures").expandingTildeInPath
         if FileManager.default.fileExists(atPath: dev) { return dev }
-        return "~/Documents"
+        return NSString(string: "~/Documents").expandingTildeInPath
     }()
 }

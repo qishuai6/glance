@@ -141,7 +141,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc private func showDemoPreview() {
-        let dir = "/Users/qishuai/ZCodeProject/Glance/fixtures"
+        let dir = NSString(string: "~/ZCodeProject/Glance/fixtures").expandingTildeInPath
         let urls = ["sample.md", "demo.zip", "demo.sql", "data.json", "data.csv",
                     "config.yaml", "config.toml", "app.log", "demo.swift", "demo.tar"]
             .map { URL(fileURLWithPath: "\(dir)/\($0)") }

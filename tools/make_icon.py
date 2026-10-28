@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
-"""秒览 Glance 图标：官方品牌图（蓝底 + 白色空格键键帽）
-源图 tools/icon_source.png 是 iOS 全出血方图；macOS 需裁成官方 squircle
-（1024 画布、824×824 图形区居中、圆角 185），否则 Dock 里是方角满铺。
+"""秒览 Glance 图标：预览卡片图（蓝紫渐变 + 日落山景卡片 + 星光）
+源图 tools/icon_source.png 支持两种形态：
+- 全出血方图 → 裁成官方 squircle（1024 画布、824×824 图形区、圆角 185）
+- 已带透明边的成品 squircle（四角 alpha=0）→ 直接缩放使用，不再二次裁剪
 """
 from PIL import Image, ImageDraw
 import os
@@ -15,13 +16,23 @@ SHAPE = 824   # macOS 官方图形区（Big Sur+ 规范）
 RADIUS = 185  # 官方 squircle 圆角半径
 
 src = Image.open(SRC).convert("RGBA")
-art = src.resize((SHAPE, SHAPE), Image.LANCZOS)
 
-img = Image.new("RGBA", (S, S), (0, 0, 0, 0))
-mask = Image.new("L", (SHAPE, SHAPE), 0)
-ImageDraw.Draw(mask).rounded_rectangle([0, 0, SHAPE - 1, SHAPE - 1], radius=RADIUS, fill=255)
-off = (S - SHAPE) // 2
-img.paste(art, (off, off), mask)
+corners_transparent = all(
+    src.getpixel(p)[3] == 0
+    for p in [(2, 2), (src.width - 3, 2), (2, src.height - 3), (src.width - 3, src.height - 3)]
+)
+
+if corners_transparent:
+    # 成品 squircle：保持原设计（含星光等外溢装饰）直接归一到 1024
+    img = src.resize((S, S), Image.LANCZOS)
+else:
+    art = src.resize((SHAPE, SHAPE), Image.LANCZOS)
+
+    img = Image.new("RGBA", (S, S), (0, 0, 0, 0))
+    mask = Image.new("L", (SHAPE, SHAPE), 0)
+    ImageDraw.Draw(mask).rounded_rectangle([0, 0, SHAPE - 1, SHAPE - 1], radius=RADIUS, fill=255)
+    off = (S - SHAPE) // 2
+    img.paste(art, (off, off), mask)
 
 # 输出 1：Assets.xcassets（保持仓库一致；实际打包走 App/AppIcon.icns）
 iconset_dir = os.path.join(HERE, "..", "App", "Assets.xcassets", "AppIcon.appiconset")

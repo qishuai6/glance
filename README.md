@@ -1,3 +1,5 @@
+<p align="center"><img src="docs/icon.png" width="140" alt="秒览 Glance 图标"></p>
+
 # 秒览 Glance
 
 > 让 macOS 空格键预览一切：md、zip、sql、json、csv、yaml、toml、log、30+ 编程语言……
@@ -75,6 +77,7 @@ swiftc -O QLExtension/Renderers/*.swift tools/main.swift -o tools/render_cli
 
 ## 更新日志
 
+- **2026-10-28** README 顶部加 App 图标（docs/icon.png）。
 - **2026-10-28** 修复设置窗口无法打开：改用 SwiftUI Settings 场景（主菜单新增「设置… ⌘,」，可反复开关），替换原 WindowGroup + makeKeyAndOrderFront 在窗口关闭后失效的方案。
 - **2026-10-28** 品牌视觉升级：App 图标与设置窗口 logo 换预览卡片图（蓝紫渐变 + 日落山景卡片 + 星光），图标生成脚本 make_icon.py 兼容成品 squircle 源图。
 - **2026-09-30** 品牌视觉定型：App 图标与设置窗口 logo 换空格键键帽图，状态栏图标改单色键帽剪影（模板自适配菜单栏深浅色）。

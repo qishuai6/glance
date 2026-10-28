@@ -5,7 +5,7 @@ import ServiceManagement
 struct GlanceApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     var body: some Scene {
-        WindowGroup {
+        Settings {
             ContentView()
         }
         .windowResizability(.contentSize)
@@ -133,11 +133,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func showSettings() {
         NSApp.activate(ignoringOtherApps: true)
-        for w in NSApp.windows where w.frameAutosaveName.isEmpty == false || w.isVisible || true {
-            if w is NSPanel { continue }
-            w.makeKeyAndOrderFront(nil)
-            break
-        }
+        // Settings 场景的窗口由 SwiftUI 管理（主菜单「设置…」⌘, 同一动作），可反复打开
+        NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
     }
 
     @objc private func showDemoPreview() {

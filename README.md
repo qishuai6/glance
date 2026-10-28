@@ -75,6 +75,7 @@ swiftc -O QLExtension/Renderers/*.swift tools/main.swift -o tools/render_cli
 
 ## 更新日志
 
+- **2026-10-28** 修复设置窗口无法打开：改用 SwiftUI Settings 场景（主菜单新增「设置… ⌘,」，可反复开关），替换原 WindowGroup + makeKeyAndOrderFront 在窗口关闭后失效的方案。
 - **2026-10-28** 品牌视觉升级：App 图标与设置窗口 logo 换预览卡片图（蓝紫渐变 + 日落山景卡片 + 星光），图标生成脚本 make_icon.py 兼容成品 squircle 源图。
 - **2026-09-30** 品牌视觉定型：App 图标与设置窗口 logo 换空格键键帽图，状态栏图标改单色键帽剪影（模板自适配菜单栏深浅色）。
 - **2026-09-24** 格式大扩容：新增 svg / psd 空格预览（PSD 合成图解析）、ai / eps / 字体 / ipynb / gz / apk-ipa-jar 与 40+ 编程语言；方向键导航浏览整个文件夹 + Finder 选中项同步跟随；空格接管遍历访达全部窗口取选中项的稳定性修复、辅助功能授权自动引导。
